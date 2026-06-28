@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TW Consultoria · Precificação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --canvas: #F3F4F1;
+    --surface: #FFFFFF;
+    --ink: #16201B;
+    --muted: #6A736C;
+    --line: #E3E6E1;
+    --primary: #1F6E5A;
+    --primary-soft: #E8F0EC;
+    --gold: #A9761F;
+
+    --c-custo:   #93A09B;
+    --c-imposto: #C2693E;
+    --c-despvar: #D7A246;
+    --c-despfix: #6E8FA6;
+    --c-lucro:   #1F6E5A;
+
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(22,32,27,.04), 0 8px 24px rgba(22,32,27,.06);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--canvas);
+    color: var(--ink);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding: 28px 20px 64px;
+  }
+
+  .wrap { max-width: 1040px; margin: 0 auto; }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 30px;
+  }
+  .mono {
+    width: 46px; height: 46px;
+    flex: none;
+    border-radius: 12px;
+    background: var(--ink);
+    color: var(--canvas);
+    display: grid;
+    place-items: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 19px;
+    letter-spacing: -0.5px;
+  }
+  .brand h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.3px;
+  }
+  .brand p {
+    font-size: 12.5px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* Grid */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1.05fr;
+    gap: 22px;
+    align-items: start;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 26px;
+  }
+
+  .card-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 22px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title::before {
+    content: "";
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--primary);
+  }
+
+  /* Fields */
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 500;
+    margin-bottom: 7px;
+  }
+  .field .hint {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .input-shell {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #FBFCFB;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .input-shell:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+  .input-shell .affix {
+    padding: 0 12px;
+    font-size: 14px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .input-shell input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 12px 14px 12px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    width: 100%;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+  }
+  .input-shell input.pl { padding-left: 4px; }
+
+  /* Result */
+  .result.card { padding: 0; overflow: hidden; }
+  .price-block {
+    padding: 28px 26px 24px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #FBFAF6 100%);
+    border-bottom: 1px solid var(--line);
+  }
+  .price-label {
+    font-size: 12.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .price {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: clamp(40px, 7vw, 56px);
+    letter-spacing: -1.5px;
+    color: var(--gold);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .price .cents { font-size: 0.5em; color: #C2A05B; }
+  .price-meta {
+    display: flex;
+    gap: 26px;
+    margin-top: 18px;
+  }
+  .price-meta div { font-variant-numeric: tabular-nums; }
+  .price-meta .k {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .price-meta .v {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    margin-top: 2px;
+  }
+  .price-meta .v.profit { color: var(--primary); }
+
+  /* Stacked bar */
+  .decomp { padding: 22px 26px; }
+  .decomp h3 {
+    font-size: 12.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .bar {
+    display: flex;
+    height: 14px;
+    border-radius: 7px;
+    overflow: hidden;
+    background: var(--line);
+  }
+  .bar span { display: block; height: 100%; transition: width .25s ease; }
+
+  .legend {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .legend-row {
+    display: grid;
+    grid-template-columns: 14px 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .legend-row:last-child { border-bottom: none; }
+  .legend-row .dot { width: 11px; height: 11px; border-radius: 3px; }
+  .legend-row .name { color: var(--ink); }
+  .legend-row .pct {
+    color: var(--muted);
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    min-width: 48px;
+  }
+  .legend-row .val {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    min-width: 86px;
+  }
+
+  .warning {
+    margin: 0 26px 24px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: #FBEEE7;
+    border: 1px solid #EAC9B6;
+    color: #9A4B25;
+    font-size: 13.5px;
+    display: none;
+  }
+  .warning.show { display: block; }
+
+  footer {
+    margin-top: 30px;
+    font-size: 12.5px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+    body { padding: 22px 16px 48px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="mono" aria-hidden="true">TW</div>
+      <div class="brand">
+        <h1>TW Consultoria Empresarial</h1>
+        <p>Sistema de Precificação</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Inputs -->
+      <section class="card" aria-label="Dados de entrada">
+        <div class="card-title">Dados do produto ou serviço</div>
+
+        <div class="field">
+          <label for="custo">Custo total <span class="hint">(matéria-prima, mão de obra etc.)</span></label>
+          <div class="input-shell">
+            <span class="affix">R$</span>
+            <input id="custo" class="pl" type="number" inputmode="decimal" min="0" step="0.01" value="100" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="impostos">Impostos sobre venda <span class="hint">(% — conforme regime tributário)</span></label>
+          <div class="input-shell">
+            <input id="impostos" type="number" inputmode="decimal" min="0" step="0.1" value="8" />
+            <span class="affix">%</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="despvar">Despesas variáveis <span class="hint">(% — comissão, taxa de cartão, frete)</span></label>
+          <div class="input-shell">
+            <input id="despvar" type="number" inputmode="decimal" min="0" step="0.1" value="5" />
+            <span class="affix">%</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="despfix">Despesas fixas / administrativas <span class="hint">(% — rateio sobre o faturamento)</span></label>
+          <div class="input-shell">
+            <input id="despfix" type="number" inputmode="decimal" min="0" step="0.1" value="10" />
+            <span class="affix">%</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="margem">Margem de lucro desejada <span class="hint">(%)</span></label>
+          <div class="input-shell">
+            <input id="margem" type="number" inputmode="decimal" min="0" step="0.1" value="20" />
+            <span class="affix">%</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Result -->
+      <section class="result card" aria-label="Resultado da precificação">
+        <div class="price-block">
+          <div class="price-label">Preço de venda sugerido</div>
+          <div class="price" id="preco">R$ 0,00</div>
+          <div class="price-meta">
+            <div>
+              <div class="k">Lucro líquido</div>
+              <div class="v profit" id="lucro">R$ 0,00</div>
+            </div>
+            <div>
+              <div class="k">Markup</div>
+              <div class="v" id="markup">0,00×</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="warning" id="warning"></div>
+
+        <div class="decomp" id="decomp">
+          <h3>Para onde vai cada real</h3>
+          <div class="bar" id="bar">
+            <span id="s-custo"   style="background:var(--c-custo)"></span>
+            <span id="s-imposto" style="background:var(--c-imposto)"></span>
+            <span id="s-despvar" style="background:var(--c-despvar)"></span>
+            <span id="s-despfix" style="background:var(--c-despfix)"></span>
+            <span id="s-lucro"   style="background:var(--c-lucro)"></span>
+          </div>
+          <div class="legend" id="legend"></div>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      Método do markup divisor · Os percentuais incidem sobre o preço de venda.
+    </footer>
+  </div>
+
+<script>
+  const fmtBRL = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const fmtPct = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+  const num = id => parseFloat(document.getElementById(id).value) || 0;
+
+  const ids = ['custo', 'impostos', 'despvar', 'despfix', 'margem'];
+
+  const parts = [
+    { key: 'custo',   label: 'Custo',                color: 'var(--c-custo)' },
+    { key: 'imposto', label: 'Impostos',             color: 'var(--c-imposto)' },
+    { key: 'despvar', label: 'Despesas variáveis',   color: 'var(--c-despvar)' },
+    { key: 'despfix', label: 'Despesas fixas',       color: 'var(--c-despfix)' },
+    { key: 'lucro',   label: 'Lucro líquido',        color: 'var(--c-lucro)' },
+  ];
+
+  function calc() {
+    const custo    = num('custo');
+    const impostos = num('impostos');
+    const despvar  = num('despvar');
+    const despfix  = num('despfix');
+    const margem   = num('margem');
+
+    const somaPct = impostos + despvar + despfix + margem;
+    const divisor = 1 - somaPct / 100;
+    const warn = document.getElementById('warning');
+
+    if (divisor <= 0) {
+      warn.classList.add('show');
+      warn.textContent = 'A soma de impostos, despesas e margem chegou a ' +
+        fmtPct(somaPct) + '. Para o cálculo funcionar ela precisa ficar abaixo de 100%.';
+      document.getElementById('preco').textContent = '—';
+      document.getElementById('lucro').textContent = '—';
+      document.getElementById('markup').textContent = '—';
+      document.getElementById('decomp').style.opacity = '.35';
+      return;
+    }
+    warn.classList.remove('show');
+    document.getElementById('decomp').style.opacity = '1';
+
+    const preco  = custo / divisor;
+    const markup = preco / (custo || 1);
+
+    const vals = {
+      custo:   custo,
+      imposto: preco * impostos / 100,
+      despvar: preco * despvar / 100,
+      despfix: preco * despfix / 100,
+      lucro:   preco * margem / 100,
+    };
+
+    // Preço com centavos destacados
+    const precoStr = fmtBRL(preco);
+    const [reais, cents] = precoStr.split(',');
+    document.getElementById('preco').innerHTML = reais + '<span class="cents">,' + cents + '</span>';
+    document.getElementById('lucro').textContent = fmtBRL(vals.lucro);
+    document.getElementById('markup').textContent =
+      markup.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '×';
+
+    // Barra empilhada
+    parts.forEach(p => {
+      const pct = preco > 0 ? (vals[p.key] / preco) * 100 : 0;
+      document.getElementById('s-' + p.key).style.width = pct + '%';
+    });
+
+    // Legenda
+    const legend = document.getElementById('legend');
+    legend.innerHTML = parts.map(p => {
+      const v = vals[p.key];
+      const pct = preco > 0 ? (v / preco) * 100 : 0;
+      return '<div class="legend-row">' +
+        '<span class="dot" style="background:' + p.color + '"></span>' +
+        '<span class="name">' + p.label + '</span>' +
+        '<span class="pct">' + fmtPct(pct) + '</span>' +
+        '<span class="val">' + fmtBRL(v) + '</span>' +
+      '</div>';
+    }).join('');
+  }
+
+  ids.forEach(id => document.getElementById(id).addEventListener('input', calc));
+  calc();
+</script>
+</body>
+</html>
