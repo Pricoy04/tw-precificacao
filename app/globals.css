@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg-page:      #0b0b0c;
+  --bg-sidebar:   #0e0e10;
+  --bg-card:      #131315;
+  --bg-input:     #161618;
+  --bg-hover:     #18181b;
+  --bg-card-alt:  #16161a;
+
+  --border:       #1c1a1e;
+  --border-card:  #1f1d22;
+  --border-input: #262428;
+  --border-hover: #38342e;
+
+  --gold:         #d9a82c;
+  --gold-light:   #f4d98a;
+  --gold-dim:     rgba(217,168,44,0.1);
+  --gold-border:  rgba(217,168,44,0.22);
+  --gold-grad:    linear-gradient(180deg, #e3b53f, #cf9a1f);
+
+  --green:        #7fb38a;
+  --green-bg:     rgba(127,179,138,0.12);
+  --red:          #c4756a;
+  --red-bg:       rgba(196,117,106,0.12);
+  --blue:         #6a9ec4;
+  --blue-bg:      rgba(106,158,196,0.12);
+
+  --text-primary:   #f4f1ea;
+  --text-secondary: #a8a39a;
+  --text-muted:     #8a857c;
+  --text-dim:       #6e6a62;
+
+  --font-heading: 'Archivo', sans-serif;
+  --font-body:    'IBM Plex Sans', sans-serif;
+  --font-mono:    'IBM Plex Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100%;
+}
+
+::selection { background: rgba(217,168,44,0.3); color: #fff; }
+
+input, button, textarea, select { font-family: inherit; }
+input::placeholder, textarea::placeholder { color: var(--text-dim); }
+
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: #2a2825; border-radius: 8px; border: 2px solid var(--bg-page); }
+*::-webkit-scrollbar-track { background: transparent; }
+
+a { text-decoration: none; color: inherit; }
+
+@keyframes twFade {
+  from { transform: translateY(7px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+@keyframes twGlow {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 0.85; }
+}
+
+.animate-fade { animation: twFade 0.4s ease; }
