@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'TW Consultoria — Plataforma',
+  title: 'TW Consultoria Empresarial',
   description: 'Plataforma interna de gestão da TW Consultoria Empresarial',
 }
 
