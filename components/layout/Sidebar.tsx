@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import {
   ChartBarIcon, UsersIcon, FunnelIcon, FileTextIcon, CalendarIcon,
   PlusIcon, SignOutIcon, HouseIcon,
@@ -16,10 +17,39 @@ const navItems = [
   { href: '/agenda',    label: 'Agenda',     Icon: CalendarIcon },
 ]
 
+function getInitials(name: string) {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('')
+}
+
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const [userName, setUserName] = useState('')
+  const [userRole, setUserRole] = useState('')
+
+  useEffect(() => {
+    async function loadUser() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, role')
+        .eq('id', user.id)
+        .single()
+
+      if (profile?.name) {
+        setUserName(profile.name)
+        setUserRole(profile.role ?? '')
+      } else {
+        const emailName = user.email?.split('@')[0] ?? ''
+        setUserName(emailName)
+        setUserRole('')
+      }
+    }
+    loadUser()
+  }, [])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -129,10 +159,12 @@ export function Sidebar() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: 'var(--font-heading)', fontWeight: 700, color: 'var(--gold)', fontSize: 14,
             boxShadow: '0 0 0 1px rgba(217,168,44,0.2)',
-          }}>TM</div>
-          <div style={{ flex: 1, lineHeight: 1.25 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Thiago Mendes</div>
-            <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Sócio-diretor</div>
+          }}>{userName ? getInitials(userName) : '…'}</div>
+          <div style={{ flex: 1, lineHeight: 1.25, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {userName || '…'}
+            </div>
+            {userRole && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{userRole}</div>}
           </div>
           <button onClick={handleLogout} style={{
             background: 'none', border: 'none', cursor: 'pointer',
