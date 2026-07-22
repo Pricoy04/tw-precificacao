@@ -70,12 +70,13 @@ export function Sidebar() {
       height: '100vh',
     }}>
       {/* Logo */}
-      <div style={{
+      <Link href="/" style={{
         padding: '22px 20px 18px',
         display: 'flex',
         alignItems: 'center',
         gap: 12,
         borderBottom: '1px solid var(--border)',
+        textDecoration: 'none',
       }}>
         <div style={{
           width: 42, height: 42, borderRadius: 10,
@@ -85,14 +86,14 @@ export function Sidebar() {
           fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 16, color: 'var(--gold)',
         }}>TW</div>
         <div style={{ lineHeight: 1.1 }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 15, letterSpacing: '0.03em' }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 15, letterSpacing: '0.03em', color: 'var(--text-primary)' }}>
             TW CONSULTORIA
           </div>
           <div style={{ fontSize: 9.5, letterSpacing: '0.3em', color: 'var(--gold)', fontWeight: 600 }}>
             EMPRESARIAL
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Nova proposta CTA */}
       <div style={{ padding: '18px 14px 8px' }}>
