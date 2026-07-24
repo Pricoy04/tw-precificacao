@@ -7,12 +7,12 @@ import { formatCurrency } from '@/lib/utils'
 import { FloppyDiskIcon, FilePptIcon } from '@phosphor-icons/react'
 
 const DEFAULT_SERVICES = [
-  { nome: 'B.P.O. Pricing', desc: 'Gestão e estruturação de precificação', valor: 3500 },
-  { nome: 'Palestra', desc: 'Apresentação temática para times e líderes', valor: 2500 },
-  { nome: 'Workshop', desc: 'Treinamento prático com dinâmicas e entregas', valor: 4000 },
-  { nome: 'Consultoria', desc: 'Acompanhamento estratégico personalizado', valor: 6000 },
-  { nome: 'Mentoria', desc: 'Sessões individuais com gestores-chave', valor: 2800 },
-  { nome: 'Diagnóstico Quick Scan', desc: 'Análise rápida de processos e gargalos', valor: 1800 },
+  { nome: 'B.P.O. Pricing', desc: 'Gestão e estruturação de precificação' },
+  { nome: 'Palestra', desc: 'Apresentação temática para times e líderes' },
+  { nome: 'Workshop', desc: 'Treinamento prático com dinâmicas e entregas' },
+  { nome: 'Consultoria', desc: 'Acompanhamento estratégico personalizado' },
+  { nome: 'Mentoria', desc: 'Sessões individuais com gestores-chave' },
+  { nome: 'Diagnóstico Quick Scan', desc: 'Análise rápida de processos e gargalos' },
 ]
 
 function NovaPropostaInner() {
@@ -53,13 +53,13 @@ function NovaPropostaInner() {
         setCustomPrices(p => { const c = { ...p }; delete c[i]; return c })
         return next
       }
-      setCustomPrices(p => ({ ...p, [i]: DEFAULT_SERVICES[i].valor }))
+      setCustomPrices(p => ({ ...p, [i]: 0 }))
       return [...s, i]
     })
   }
 
   function getPrice(i: number) {
-    return customPrices[i] ?? DEFAULT_SERVICES[i].valor
+    return customPrices[i] ?? 0
   }
 
   const subtotal = selected.reduce((s, i) => s + getPrice(i), 0)
@@ -68,7 +68,7 @@ function NovaPropostaInner() {
 
   async function handleSave() {
     setSaving(true)
-    const services = selected.map(i => ({ ...DEFAULT_SERVICES[i], valor: getPrice(i) }))
+    const services = selected.map(i => ({ nome: DEFAULT_SERVICES[i].nome, desc: DEFAULT_SERVICES[i].desc, valor: getPrice(i) }))
     await fetch('/api/proposals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -199,8 +199,8 @@ function NovaPropostaInner() {
                           <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}>{s.desc}</div>
                         </div>
                         {!active && (
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5, color: 'var(--text-muted)', fontWeight: 500 }}>
-                            {formatCurrency(s.valor)}
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-dim)' }}>
+                            clique para selecionar
                           </div>
                         )}
                       </div>
