@@ -7,12 +7,12 @@ import { formatCurrency } from '@/lib/utils'
 import { FloppyDiskIcon, FilePptIcon } from '@phosphor-icons/react'
 
 const DEFAULT_SERVICES = [
-  { nome: 'BPO Financeiro', desc: 'Gestão financeira completa e relatórios mensais', valor: 3500 },
-  { nome: 'Planejamento Estratégico', desc: 'Workshop + roadmap de 12 meses', valor: 8000 },
-  { nome: 'Reestruturação de Processos', desc: 'Mapeamento e redesenho de fluxos operacionais', valor: 6000 },
-  { nome: 'Consultoria Comercial', desc: 'Estruturação do time e processo de vendas', valor: 5500 },
-  { nome: 'Implementação de CRM', desc: 'Configuração e treinamento de ferramenta CRM', valor: 4000 },
-  { nome: 'Mentoria de Liderança', desc: 'Sessões individuais com gestores-chave', valor: 2800 },
+  { nome: 'B.P.O. Pricing', desc: 'Gestão e estruturação de precificação', valor: 3500 },
+  { nome: 'Palestra', desc: 'Apresentação temática para times e líderes', valor: 2500 },
+  { nome: 'Workshop', desc: 'Treinamento prático com dinâmicas e entregas', valor: 4000 },
+  { nome: 'Consultoria', desc: 'Acompanhamento estratégico personalizado', valor: 6000 },
+  { nome: 'Mentoria', desc: 'Sessões individuais com gestores-chave', valor: 2800 },
+  { nome: 'Diagnóstico Quick Scan', desc: 'Análise rápida de processos e gargalos', valor: 1800 },
 ]
 
 function NovaPropostaInner() {
@@ -20,15 +20,17 @@ function NovaPropostaInner() {
   const searchParams = useSearchParams()
   const clienteId = searchParams.get('clienteId')
 
-  const [empresa, setEmpresa] = useState('')
-  const [cnpj, setCnpj]       = useState('')
-  const [contato, setContato] = useState('')
-  const [cargo, setCargo]     = useState('')
-  const [prazo, setPrazo]     = useState('3 meses')
+  const [empresa, setEmpresa]   = useState('')
+  const [cnpj, setCnpj]         = useState('')
+  const [contato, setContato]   = useState('')
+  const [cargo, setCargo]       = useState('')
+  const [prazo, setPrazo]       = useState('3 meses')
   const [validade, setValidade] = useState('15 dias')
+  const [condicoes, setCondicoes] = useState('50% na assinatura, 50% na entrega')
   const [desconto, setDesconto] = useState(0)
   const [selected, setSelected] = useState<number[]>([])
-  const [saving, setSaving]   = useState(false)
+  const [customPrices, setCustomPrices] = useState<Record<number, number>>({})
+  const [saving, setSaving]     = useState(false)
 
   useEffect(() => {
     if (clienteId) {
@@ -45,23 +47,35 @@ function NovaPropostaInner() {
   }, [clienteId])
 
   function toggle(i: number) {
-    setSelected(s => s.includes(i) ? s.filter(x => x !== i) : [...s, i])
+    setSelected(s => {
+      if (s.includes(i)) {
+        const next = s.filter(x => x !== i)
+        setCustomPrices(p => { const c = { ...p }; delete c[i]; return c })
+        return next
+      }
+      setCustomPrices(p => ({ ...p, [i]: DEFAULT_SERVICES[i].valor }))
+      return [...s, i]
+    })
   }
 
-  const subtotal = selected.reduce((s, i) => s + DEFAULT_SERVICES[i].valor, 0)
+  function getPrice(i: number) {
+    return customPrices[i] ?? DEFAULT_SERVICES[i].valor
+  }
+
+  const subtotal = selected.reduce((s, i) => s + getPrice(i), 0)
   const descVal  = subtotal * (desconto / 100)
   const total    = subtotal - descVal
 
   async function handleSave() {
     setSaving(true)
-    const services = selected.map(i => DEFAULT_SERVICES[i])
+    const services = selected.map(i => ({ ...DEFAULT_SERVICES[i], valor: getPrice(i) }))
     await fetch('/api/proposals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         client_id: clienteId ?? null,
         empresa, cnpj, contato, cargo,
-        prazo, validade, desconto, total,
+        prazo, validade, condicoes, desconto, total,
         status: 'rascunho',
         services,
       }),
@@ -73,7 +87,6 @@ function NovaPropostaInner() {
     const pptxgen = (await import('pptxgenjs')).default
     const prs = new pptxgen()
 
-    // Slide 1 — Capa
     const s1 = prs.addSlide()
     s1.background = { color: '0b0b0c' }
     s1.addText('TW CONSULTORIA', { x: 0.5, y: 0.3, w: 9, fontSize: 11, bold: true, color: 'd9a82c', charSpacing: 4 })
@@ -82,7 +95,6 @@ function NovaPropostaInner() {
     s1.addText(`Aos cuidados de ${contato} · ${cargo}`, { x: 0.5, y: 4.1, w: 9, fontSize: 11, color: '8a857c' })
     s1.addText(`${new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' })} · Válida por ${validade}`, { x: 0.5, y: 5.2, w: 9, fontSize: 10, color: '6e6a62', fontFace: 'Courier New' })
 
-    // Slide 2 — Sobre a TW
     const s2 = prs.addSlide()
     s2.background = { color: 'f4f1ea' }
     s2.addText('SOBRE A TW', { x: 0.5, y: 0.4, w: 9, fontSize: 9, bold: true, color: 'b8841a', charSpacing: 4 })
@@ -92,17 +104,15 @@ function NovaPropostaInner() {
     s2.addText('8 anos de mercado', { x: 3.2, y: 3.8, w: 2.5, fontSize: 18, bold: true, color: 'b8841a' })
     s2.addText('94% satisfação', { x: 6, y: 3.8, w: 2.5, fontSize: 18, bold: true, color: 'b8841a' })
 
-    // Slide 3 — Escopo
     const s3 = prs.addSlide()
     s3.background = { color: 'f4f1ea' }
     s3.addText('ESCOPO DO TRABALHO', { x: 0.5, y: 0.4, w: 9, fontSize: 9, bold: true, color: 'b8841a', charSpacing: 4 })
     selected.forEach((si, idx) => {
       const svc = DEFAULT_SERVICES[si]
       s3.addText(`• ${svc.nome}`, { x: 0.5, y: 1.2 + idx * 0.6, w: 7, fontSize: 13, bold: true, color: '1a1812' })
-      s3.addText(formatCurrency(svc.valor), { x: 7.5, y: 1.2 + idx * 0.6, w: 2, fontSize: 11, color: '6e6a62', align: 'right', fontFace: 'Courier New' })
+      s3.addText(formatCurrency(getPrice(si)), { x: 7.5, y: 1.2 + idx * 0.6, w: 2, fontSize: 11, color: '6e6a62', align: 'right', fontFace: 'Courier New' })
     })
 
-    // Slide 4 — Investimento
     const s4 = prs.addSlide()
     s4.background = { color: '0b0b0c' }
     s4.addText('INVESTIMENTO', { x: 0.5, y: 0.5, w: 9, fontSize: 9, bold: true, color: 'd9a82c', charSpacing: 4 })
@@ -110,11 +120,18 @@ function NovaPropostaInner() {
     s4.addText(formatCurrency(total), { x: 0.5, y: 2, w: 7, fontSize: 36, bold: true, color: 'f4d98a', fontFace: 'Courier New' })
     s4.addText('Prazo', { x: 7, y: 2, w: 2.3, fontSize: 10, color: '6e6a62', align: 'right' })
     s4.addText(prazo, { x: 7, y: 2.5, w: 2.3, fontSize: 15, bold: true, color: 'f4f1ea', align: 'right' })
+    if (condicoes) s4.addText(condicoes, { x: 0.5, y: 4.5, w: 9, fontSize: 10, color: '6e6a62', italic: true })
 
     await prs.writeFile({ fileName: `Proposta TW - ${empresa || 'Cliente'}.pptx` })
   }
 
-  const selServices = selected.map(i => DEFAULT_SERVICES[i])
+  const selServices = selected.map(i => ({ ...DEFAULT_SERVICES[i], valor: getPrice(i) }))
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', background: 'var(--bg-card-alt)', border: '1px solid var(--border-input)',
+    borderRadius: 9, padding: '11px 13px', color: 'var(--text-primary)', fontSize: 13.5, outline: 'none',
+    boxSizing: 'border-box',
+  }
 
   return (
     <>
@@ -141,17 +158,13 @@ function NovaPropostaInner() {
                   <div key={f.label}>
                     <label style={{ display: 'block', fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 6 }}>{f.label}</label>
                     <input value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.placeholder}
-                      style={{
-                        width: '100%', background: 'var(--bg-card-alt)', border: '1px solid var(--border-input)',
-                        borderRadius: 9, padding: '11px 13px', color: 'var(--text-primary)', fontSize: 13.5, outline: 'none',
-                        fontFamily: f.mono ? 'var(--font-mono)' : undefined,
-                      }} />
+                      style={{ ...inputStyle, fontFamily: f.mono ? 'var(--font-mono)' : undefined }} />
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Step 2 */}
+            {/* Step 2 — Serviços com preço editável */}
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: 14, padding: 22 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -164,55 +177,82 @@ function NovaPropostaInner() {
                 {DEFAULT_SERVICES.map((s, i) => {
                   const active = selected.includes(i)
                   return (
-                    <div key={i} onClick={() => toggle(i)} style={{
-                      display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px',
-                      borderRadius: 11, cursor: 'pointer',
+                    <div key={i} style={{
+                      borderRadius: 11, overflow: 'hidden',
                       border: `1px solid ${active ? 'rgba(217,168,44,0.35)' : 'var(--border-input)'}`,
                       background: active ? 'rgba(217,168,44,0.07)' : 'var(--bg-card-alt)',
                     }}>
-                      <span style={{
-                        width: 21, height: 21, flexShrink: 0, borderRadius: 6,
-                        border: `1px solid ${active ? 'var(--gold)' : 'var(--border-input)'}`,
-                        background: active ? 'var(--gold)' : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      <div onClick={() => toggle(i)} style={{
+                        display: 'flex', alignItems: 'center', gap: 13,
+                        padding: '13px 15px', cursor: 'pointer',
                       }}>
-                        {active && <span style={{ color: '#1a1408', fontSize: 13, fontWeight: 700 }}>✓</span>}
-                      </span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>{s.nome}</div>
-                        <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}>{s.desc}</div>
+                        <span style={{
+                          width: 21, height: 21, flexShrink: 0, borderRadius: 6,
+                          border: `1px solid ${active ? 'var(--gold)' : 'var(--border-input)'}`,
+                          background: active ? 'var(--gold)' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {active && <span style={{ color: '#1a1408', fontSize: 13, fontWeight: 700 }}>✓</span>}
+                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>{s.nome}</div>
+                          <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}>{s.desc}</div>
+                        </div>
+                        {!active && (
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5, color: 'var(--text-muted)', fontWeight: 500 }}>
+                            {formatCurrency(s.valor)}
+                          </div>
+                        )}
                       </div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5, color: active ? 'var(--gold-light)' : 'var(--text-muted)', fontWeight: 500 }}>
-                        {formatCurrency(s.valor)}
-                      </div>
+                      {active && (
+                        <div style={{ padding: '0 15px 13px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <label style={{ fontSize: 11.5, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Valor (R$):</label>
+                          <input
+                            type="number"
+                            value={getPrice(i)}
+                            onChange={e => setCustomPrices(p => ({ ...p, [i]: Number(e.target.value) || 0 }))}
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              ...inputStyle, fontFamily: 'var(--font-mono)', fontSize: 13.5,
+                              padding: '8px 12px', width: 160, color: 'var(--gold-light)',
+                            }}
+                          />
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--gold)', fontWeight: 600 }}>
+                            = {formatCurrency(getPrice(i))}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
               </div>
             </div>
 
-            {/* Step 3 */}
+            {/* Step 3 — Prazos e condições */}
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: 14, padding: 22 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
                 <StepBadge n={3} />
                 <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 15 }}>Prazos e condições</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                {[
-                  { label: 'Prazo de execução', value: prazo, set: setPrazo, placeholder: 'Ex: 3 meses' },
-                  { label: 'Validade', value: validade, set: setValidade, placeholder: 'Ex: 15 dias' },
-                  { label: 'Desconto (%)', value: String(desconto), set: (v: string) => setDesconto(Number(v) || 0), placeholder: '0', mono: true },
-                ].map(f => (
-                  <div key={f.label}>
-                    <label style={{ display: 'block', fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 6 }}>{f.label}</label>
-                    <input value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.placeholder}
-                      style={{
-                        width: '100%', background: 'var(--bg-card-alt)', border: '1px solid var(--border-input)',
-                        borderRadius: 9, padding: '11px 13px', color: 'var(--text-primary)', fontSize: 13.5, outline: 'none',
-                        fontFamily: f.mono ? 'var(--font-mono)' : undefined,
-                      }} />
-                  </div>
-                ))}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 6 }}>Prazo de execução</label>
+                  <input value={prazo} onChange={e => setPrazo(e.target.value)} placeholder="Ex: 3 meses" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 6 }}>Validade da proposta</label>
+                  <input value={validade} onChange={e => setValidade(e.target.value)} placeholder="Ex: 15 dias" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 6 }}>Desconto (%)</label>
+                  <input value={String(desconto)} onChange={e => setDesconto(Number(e.target.value) || 0)} placeholder="0"
+                    style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 6 }}>Condições de pagamento</label>
+                  <input value={condicoes} onChange={e => setCondicoes(e.target.value)}
+                    placeholder="Ex: 50% na assinatura, 50% na entrega" style={inputStyle} />
+                </div>
               </div>
             </div>
           </div>
@@ -226,7 +266,6 @@ function NovaPropostaInner() {
               <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>4 slides</div>
             </div>
 
-            {/* Slide 1 */}
             <Slide dark>
               <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%' }}>
                 <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 11, letterSpacing: '0.04em' }}>TW CONSULTORIA</div>
@@ -241,7 +280,6 @@ function NovaPropostaInner() {
               </div>
             </Slide>
 
-            {/* Slide 2 */}
             <Slide light>
               <div style={{ fontSize: 9, letterSpacing: '0.25em', color: '#b8841a', fontWeight: 700, marginBottom: 8 }}>SOBRE A TW</div>
               <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: '#1a1812', marginBottom: 8 }}>
@@ -260,7 +298,6 @@ function NovaPropostaInner() {
               </div>
             </Slide>
 
-            {/* Slide 3 */}
             <Slide light>
               <div style={{ fontSize: 9, letterSpacing: '0.25em', color: '#b8841a', fontWeight: 700, marginBottom: 10 }}>ESCOPO DO TRABALHO</div>
               {selServices.length === 0
@@ -276,7 +313,6 @@ function NovaPropostaInner() {
                 ))}
             </Slide>
 
-            {/* Slide 4 */}
             <Slide dark>
               <div style={{ fontSize: 9, letterSpacing: '0.25em', color: 'var(--gold)', fontWeight: 700, marginBottom: 12 }}>INVESTIMENTO</div>
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
@@ -291,9 +327,11 @@ function NovaPropostaInner() {
                   <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>{prazo}</div>
                 </div>
               </div>
+              {condicoes && (
+                <div style={{ marginTop: 12, fontSize: 9.5, color: 'var(--text-dim)', fontStyle: 'italic' }}>{condicoes}</div>
+              )}
             </Slide>
 
-            {/* Totals */}
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: 12, padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 8 }}>
                 <span>Subtotal</span><span style={{ fontFamily: 'var(--font-mono)', color: '#d4cfc5' }}>{formatCurrency(subtotal)}</span>
@@ -308,7 +346,6 @@ function NovaPropostaInner() {
               </div>
             </div>
 
-            {/* Actions */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: 10 }}>
               <button onClick={handleSave} disabled={saving} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
@@ -349,17 +386,10 @@ function StepBadge({ n }: { n: number }) {
 
 function Slide({ children, dark, light }: { children: React.ReactNode; dark?: boolean; light?: boolean }) {
   return (
-    <div style={{
-      borderRadius: 12, overflow: 'hidden',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-      border: '1px solid #2a2825',
-    }}>
+    <div style={{ borderRadius: 12, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', border: '1px solid #2a2825' }}>
       <div style={{
-        aspectRatio: '16/9',
-        background: dark ? 'radial-gradient(120% 100% at 80% 10%, #1a160c, #0b0b0c)' : '#f4f1ea',
-        padding: 26,
-        display: 'flex', flexDirection: 'column',
-        color: dark ? 'var(--text-primary)' : '#1a1812',
+        aspectRatio: '16/9', background: dark ? 'radial-gradient(120% 100% at 80% 10%, #1a160c, #0b0b0c)' : '#f4f1ea',
+        padding: 26, display: 'flex', flexDirection: 'column', color: dark ? 'var(--text-primary)' : '#1a1812',
       }}>
         {children}
       </div>

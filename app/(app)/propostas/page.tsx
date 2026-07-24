@@ -1,6 +1,7 @@
 import { Header } from '@/components/layout/Header'
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDate, PROPOSAL_STATUS } from '@/lib/utils'
+import Link from 'next/link'
 
 export default async function PropostasPage() {
   const supabase = await createClient()
@@ -56,9 +57,10 @@ export default async function PropostasPage() {
           ) : proposals.map((p: any) => {
             const sc = PROPOSAL_STATUS[p.status] ?? { color: 'var(--text-muted)', bg: 'rgba(138,133,124,0.12)' }
             return (
-              <div key={p.id} style={{
+              <Link key={p.id} href={`/propostas/${p.id}`} style={{
                 display: 'grid', gridTemplateColumns: '0.7fr 1.8fr 1.6fr 1fr 1fr 1fr',
                 gap: 14, padding: '15px 20px', borderBottom: '1px solid #1a181c', alignItems: 'center',
+                textDecoration: 'none',
               }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--gold)', fontWeight: 500 }}>{p.numero}</div>
                 <div style={{ fontSize: 13.5, color: 'var(--text-primary)', fontWeight: 600 }}>{p.clients?.empresa ?? p.empresa}</div>
@@ -70,7 +72,7 @@ export default async function PropostasPage() {
                     {p.status.charAt(0).toUpperCase() + p.status.slice(1)}
                   </span>
                 </div>
-              </div>
+              </Link>
             )
           })}
         </div>
