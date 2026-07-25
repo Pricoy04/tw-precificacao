@@ -211,13 +211,12 @@ function KanbanCard({ client: c, tagColor }: { client: Client; tagColor: string 
             {c.contato || '—'}
           </span>
           {c.responsavel && (
-            <div style={{
+            <div title={c.responsavel} style={{
               width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
               background: 'linear-gradient(135deg, #2a2620, #1a1812)',
               border: '1px solid rgba(217,168,44,0.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 9, fontWeight: 700, color: 'var(--gold)',
-              title: c.responsavel,
             }}>
               {getInitials(c.responsavel)}
             </div>
