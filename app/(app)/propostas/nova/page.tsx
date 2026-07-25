@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { formatCurrency } from '@/lib/utils'
-import { FloppyDiskIcon, FilePptIcon } from '@phosphor-icons/react'
+import { FloppyDiskIcon, FilePptIcon, FilePdfIcon } from '@phosphor-icons/react'
 
 const DEFAULT_SERVICES = [
   { nome: 'B.P.O. Pricing', desc: 'Gestão e estruturação de precificação' },
@@ -123,6 +123,287 @@ function NovaPropostaInner() {
     if (condicoes) s4.addText(condicoes, { x: 0.5, y: 4.5, w: 9, fontSize: 10, color: '6e6a62', italic: true })
 
     await prs.writeFile({ fileName: `Proposta TW - ${empresa || 'Cliente'}.pptx` })
+  }
+
+  async function handleExportPDF() {
+    const { jsPDF } = await import('jspdf')
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+
+    const W = 210, H = 297
+    const ML = 20, MR = 190
+
+    const C = {
+      gold:      '#d9a82c',
+      goldLight: '#f4d98a',
+      light:     '#f4f1ea',
+      secondary: '#a8a39a',
+      muted:     '#8a857c',
+      dim:       '#6e6a62',
+      dark:      '#0b0b0c',
+      card:      '#131315',
+      border:    '#2a2825',
+      rowDiv:    '#1e1c21',
+      green:     '#7fb38a',
+    }
+
+    // ── PAGE 1: CAPA ──────────────────────────────────────────
+    doc.setFillColor(C.dark)
+    doc.rect(0, 0, W, H, 'F')
+
+    // Top gold bar
+    doc.setFillColor(C.gold)
+    doc.rect(0, 0, W, 3, 'F')
+
+    // Brand header
+    doc.setTextColor(C.gold)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.text('TW CONSULTORIA EMPRESARIAL', ML, 20)
+
+    // Thin divider below header
+    doc.setDrawColor(C.border)
+    doc.setLineWidth(0.3)
+    doc.line(ML, 26, MR, 26)
+
+    // Gold left accent bar (decorative)
+    doc.setFillColor(C.gold)
+    doc.rect(ML - 12, 95, 2, 65, 'F')
+
+    // PROPOSTA COMERCIAL label
+    doc.setTextColor(C.gold)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.text('PROPOSTA  COMERCIAL', ML, 106)
+
+    // Company name (large)
+    doc.setTextColor(C.light)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(28)
+    const empresaLines = doc.splitTextToSize(empresa || 'Nome da Empresa', MR - ML - 5)
+    doc.text(empresaLines, ML, 124)
+    const empresaH = (empresaLines.length - 1) * 12
+
+    // Contact info
+    if (contato || cargo) {
+      doc.setTextColor(C.muted)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(11)
+      doc.text(`Aos cuidados de ${contato || '—'}${cargo ? '  ·  ' + cargo : ''}`, ML, 142 + empresaH)
+    }
+
+    // Date and validity
+    doc.setTextColor(C.dim)
+    doc.setFont('courier', 'normal')
+    doc.setFontSize(9)
+    const dateStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+    doc.text(`${dateStr}  ·  Válida por ${validade}`, ML, 158 + empresaH)
+
+    // Footer line
+    doc.setDrawColor(C.border)
+    doc.setLineWidth(0.3)
+    doc.line(ML, H - 18, MR, H - 18)
+
+    doc.setTextColor(C.dim)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.text('TW Consultoria Empresarial  —  Gestão Estratégica de Precificação', ML, H - 11)
+
+    // Bottom gold bar
+    doc.setFillColor(C.gold)
+    doc.rect(0, H - 3, W, 3, 'F')
+
+    // ── PAGE 2: CONTEÚDO ──────────────────────────────────────
+    doc.addPage()
+
+    doc.setFillColor(C.dark)
+    doc.rect(0, 0, W, H, 'F')
+
+    // Top gold bar
+    doc.setFillColor(C.gold)
+    doc.rect(0, 0, W, 2, 'F')
+
+    // Header row
+    doc.setTextColor(C.gold)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.text('TW CONSULTORIA EMPRESARIAL', ML, 17)
+    doc.setFont('courier', 'bold')
+    doc.setFontSize(11)
+    doc.text('RASCUNHO', MR, 17, { align: 'right' })
+
+    doc.setDrawColor(C.border)
+    doc.setLineWidth(0.4)
+    doc.line(ML, 23, MR, 23)
+
+    let y = 35
+
+    // PREPARADA PARA
+    doc.setTextColor(C.dim)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    doc.text('PREPARADA PARA', ML, y)
+    y += 8
+
+    // Client card
+    const hasContact = !!(contato || cargo)
+    const cardH = 14 + (cnpj ? 7 : 0) + (hasContact ? 7 : 0)
+    doc.setFillColor(C.card)
+    doc.rect(ML, y, MR - ML, cardH, 'F')
+    doc.setFillColor(C.gold)
+    doc.rect(ML, y, 1, cardH, 'F')
+
+    let cy = y + 9
+    doc.setTextColor(C.light)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(14)
+    doc.text(empresa || '—', ML + 8, cy)
+    if (cnpj) {
+      cy += 7
+      doc.setTextColor(C.dim)
+      doc.setFont('courier', 'normal')
+      doc.setFontSize(8)
+      doc.text(`CNPJ: ${cnpj}`, ML + 8, cy)
+    }
+    if (hasContact) {
+      cy += 7
+      doc.setTextColor(C.secondary)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text(`${contato || ''}${contato && cargo ? '  ·  ' : ''}${cargo || ''}`, ML + 8, cy)
+    }
+    y += cardH + 14
+
+    // ESCOPO DE SERVIÇOS
+    doc.setTextColor(C.dim)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    doc.text('ESCOPO DE SERVIÇOS', ML, y)
+    y += 7
+
+    // Table header
+    doc.setTextColor(C.dim)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    doc.text('SERVIÇO', ML, y)
+    doc.text('VALOR', MR, y, { align: 'right' })
+    y += 2
+
+    doc.setDrawColor('#3a3535')
+    doc.setLineWidth(0.3)
+    doc.line(ML, y, MR, y)
+    y += 6
+
+    // Service rows
+    for (const svc of selServices) {
+      if (y > H - 75) break
+      doc.setTextColor(C.light)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.text(svc.nome, ML, y)
+
+      doc.setTextColor(C.gold)
+      doc.setFont('courier', 'bold')
+      doc.setFontSize(11)
+      doc.text(formatCurrency(svc.valor), MR, y, { align: 'right' })
+      y += 5
+
+      if (svc.desc) {
+        doc.setTextColor(C.dim)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8.5)
+        doc.text(svc.desc, ML, y)
+        y += 4
+      }
+
+      doc.setDrawColor(C.rowDiv)
+      doc.setLineWidth(0.2)
+      doc.line(ML, y + 1, MR, y + 1)
+      y += 7
+    }
+
+    // Total area
+    y += 4
+    doc.setDrawColor(C.gold)
+    doc.setLineWidth(0.5)
+    doc.line(ML, y, MR, y)
+    y += 9
+
+    if (desconto > 0) {
+      doc.setTextColor(C.secondary)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text('Subtotal', ML, y)
+      doc.setFont('courier', 'normal')
+      doc.text(formatCurrency(subtotal), MR, y, { align: 'right' })
+      y += 7
+
+      doc.setTextColor(C.green)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text(`Desconto (${desconto}%)`, ML, y)
+      doc.setFont('courier', 'normal')
+      doc.text(`− ${formatCurrency(descVal)}`, MR, y, { align: 'right' })
+      y += 9
+    }
+
+    doc.setTextColor(C.light)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.text('TOTAL DO INVESTIMENTO', ML, y)
+
+    doc.setTextColor(C.gold)
+    doc.setFont('courier', 'bold')
+    doc.setFontSize(18)
+    doc.text(formatCurrency(total), MR, y, { align: 'right' })
+    y += 16
+
+    // PRAZOS E CONDIÇÕES
+    doc.setDrawColor(C.border)
+    doc.setLineWidth(0.3)
+    doc.line(ML, y, MR, y)
+    y += 10
+
+    doc.setTextColor(C.dim)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    doc.text('PRAZOS E CONDIÇÕES', ML, y)
+    y += 9
+
+    const condRows: [string, string][] = [
+      ...(prazo     ? [['Prazo de execução',       prazo]     as [string, string]] : []),
+      ...(validade  ? [['Validade da proposta',     validade]  as [string, string]] : []),
+      ...(condicoes ? [['Condições de pagamento',   condicoes] as [string, string]] : []),
+    ]
+    for (const [label, value] of condRows) {
+      doc.setTextColor(C.dim)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8.5)
+      doc.text(label, ML, y)
+      doc.setTextColor(C.secondary)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text(value, ML + 58, y)
+      y += 9
+    }
+
+    // Footer
+    doc.setDrawColor(C.border)
+    doc.setLineWidth(0.3)
+    doc.line(ML, H - 18, MR, H - 18)
+
+    doc.setTextColor(C.dim)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.text('TW Consultoria Empresarial  —  Gestão Estratégica de Precificação', ML, H - 11)
+    doc.setTextColor(C.muted)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.text('Rascunho', MR, H - 11, { align: 'right' })
+
+    doc.setFillColor(C.gold)
+    doc.rect(0, H - 3, W, 3, 'F')
+
+    doc.save(`Proposta TW - ${empresa || 'Cliente'}.pdf`)
   }
 
   const selServices = selected.map(i => ({ ...DEFAULT_SERVICES[i], valor: getPrice(i) }))
@@ -346,25 +627,37 @@ function NovaPropostaInner() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
               <button onClick={handleSave} disabled={saving} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
                 background: 'var(--bg-card)', border: '1px solid var(--border-input)',
-                color: 'var(--text-primary)', borderRadius: 11, padding: 14, fontSize: 13.5, fontWeight: 600, cursor: 'pointer',
+                color: 'var(--text-primary)', borderRadius: 11, padding: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer',
               }}>
-                <FloppyDiskIcon size={16} />
+                <FloppyDiskIcon size={15} />
                 {saving ? 'Salvando...' : 'Salvar'}
               </button>
               <button onClick={handleExportPPT} disabled={selected.length === 0} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                background: selected.length === 0 ? 'rgba(217,168,44,0.3)' : 'var(--gold-grad)',
-                color: '#1a1408', border: 'none', borderRadius: 11, padding: 14,
-                fontWeight: 700, fontSize: 13.5, fontFamily: 'var(--font-heading)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                background: selected.length === 0 ? 'rgba(217,168,44,0.15)' : 'rgba(217,168,44,0.12)',
+                color: selected.length === 0 ? 'rgba(217,168,44,0.4)' : 'var(--gold)',
+                border: '1px solid rgba(217,168,44,0.25)',
+                borderRadius: 11, padding: 13,
+                fontWeight: 600, fontSize: 13, fontFamily: 'var(--font-heading)',
                 cursor: selected.length === 0 ? 'not-allowed' : 'pointer',
-                boxShadow: '0 5px 16px rgba(217,168,44,0.2)',
               }}>
-                <FilePptIcon size={17} />
-                Exportar PPT
+                <FilePptIcon size={15} />
+                PPT
+              </button>
+              <button onClick={handleExportPDF} disabled={selected.length === 0} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                background: selected.length === 0 ? 'rgba(217,168,44,0.3)' : 'var(--gold-grad)',
+                color: '#1a1408', border: 'none', borderRadius: 11, padding: 13,
+                fontWeight: 700, fontSize: 13, fontFamily: 'var(--font-heading)',
+                cursor: selected.length === 0 ? 'not-allowed' : 'pointer',
+                boxShadow: selected.length > 0 ? '0 5px 16px rgba(217,168,44,0.2)' : 'none',
+              }}>
+                <FilePdfIcon size={15} />
+                PDF
               </button>
             </div>
           </div>
