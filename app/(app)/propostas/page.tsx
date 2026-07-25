@@ -8,7 +8,7 @@ export default async function PropostasPage() {
   const supabase = await createClient()
   const { data: proposalsData } = await supabase
     .from('proposals')
-    .select('*, clients(empresa)')
+    .select('*, clients(empresa), proposal_services(nome)')
     .order('created_at', { ascending: false })
   const proposals = proposalsData ?? []
 
@@ -24,7 +24,7 @@ export default async function PropostasPage() {
     { label: 'Taxa de aceite', value: taxa },
   ]
 
-  const cols = '0.7fr 1.8fr 1.4fr 1fr 1fr 1fr 100px'
+  const cols = '0.7fr 1.8fr 1.6fr 1fr 1fr 1fr 100px'
 
   return (
     <>
@@ -59,22 +59,35 @@ export default async function PropostasPage() {
             </div>
           ) : proposals.map((p: any) => {
             const sc = PROPOSAL_STATUS[p.status] ?? { color: 'var(--text-muted)', bg: 'rgba(138,133,124,0.12)' }
+            const serviceNames: string[] = (p.proposal_services ?? []).map((s: any) => s.nome).filter(Boolean)
+            const servicesLabel = serviceNames.length > 0
+              ? serviceNames.length <= 2
+                ? serviceNames.join(', ')
+                : `${serviceNames.slice(0, 2).join(', ')} +${serviceNames.length - 2}`
+              : p.prazo ? p.prazo : '—'
+
             return (
               <div key={p.id} style={{
+                position: 'relative',
                 display: 'grid', gridTemplateColumns: cols,
                 gap: 14, padding: '15px 20px', borderBottom: '1px solid #1a181c', alignItems: 'center',
               }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--gold)', fontWeight: 500 }}>{p.numero}</div>
-                <div style={{ fontSize: 13.5, color: 'var(--text-primary)', fontWeight: 600 }}>{p.clients?.empresa ?? p.empresa}</div>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{p.prazo ?? '—'}</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5, color: 'var(--text-primary)' }}>{p.total ? formatCurrency(p.total) : '—'}</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--text-muted)' }}>{formatDate(p.created_at)}</div>
-                <div>
+                {/* Clickable overlay — covers entire row except actions */}
+                <Link href={`/propostas/${p.id}`} style={{ position: 'absolute', inset: 0, zIndex: 0 }} aria-label={`Abrir proposta ${p.numero}`} />
+
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--gold)', fontWeight: 500, position: 'relative', zIndex: 1 }}>{p.numero}</div>
+                <div style={{ fontSize: 13.5, color: 'var(--text-primary)', fontWeight: 600, position: 'relative', zIndex: 1 }}>{p.clients?.empresa ?? p.empresa}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', position: 'relative', zIndex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{servicesLabel}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5, color: 'var(--text-primary)', position: 'relative', zIndex: 1 }}>{p.total ? formatCurrency(p.total) : '—'}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--text-muted)', position: 'relative', zIndex: 1 }}>{formatDate(p.created_at)}</div>
+                <div style={{ position: 'relative', zIndex: 1 }}>
                   <span style={{ fontSize: 11.5, fontWeight: 600, color: sc.color, background: sc.bg, padding: '4px 12px', borderRadius: 20 }}>
                     {p.status.charAt(0).toUpperCase() + p.status.slice(1)}
                   </span>
                 </div>
-                <PropostasActions id={p.id} />
+                <div style={{ position: 'relative', zIndex: 2 }}>
+                  <PropostasActions id={p.id} />
+                </div>
               </div>
             )
           })}
