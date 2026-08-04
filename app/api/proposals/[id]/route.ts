@@ -14,7 +14,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params
   const supabase = await createClient()
   const body = await request.json()
-  const { data, error } = await supabase.from('proposals').update(body).eq('id', id).select().single()
+
+  // Explicit fields only — avoids errors if body has keys not in the schema
+  const patch: Record<string, unknown> = {}
+  const allowed = ['empresa','cnpj','contato','cargo','prazo','validade','condicoes','desconto','total','status']
+  for (const key of allowed) {
+    if (key in body) patch[key] = body[key]
+  }
+
+  const { data, error } = await supabase.from('proposals').update(patch).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
