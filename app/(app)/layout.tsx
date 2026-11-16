@@ -1,13 +1,10 @@
 import { Sidebar } from '@/components/layout/Sidebar'
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
-
+// A checagem de sessão já acontece no middleware (proxy.ts) para toda rota
+// sob este grupo — repeti-la aqui só adicionava uma segunda chamada de rede
+// ao Supabase Auth em cada clique de navegação, dobrando a demora sem
+// nenhum ganho de segurança (o middleware já bloqueia antes de chegar aqui).
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar />
