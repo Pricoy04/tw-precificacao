@@ -3,14 +3,13 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { MagnifyingGlassIcon, ListIcon, SquaresFourIcon, UserPlusIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
-import { formatCurrency, ETAPA_COLORS, getInitials } from '@/lib/utils'
-
-const ETAPAS = ['Prospecção', 'Qualificação', 'Proposta', 'Negociação', 'Ganho', 'Perdido']
+import { formatCurrency, ETAPAS, ETAPA_COLORS, getInitials } from '@/lib/utils'
 
 const COL_COLORS: Record<string, { header: string; border: string; tag: string }> = {
   'Prospecção':   { header: 'rgba(106,158,196,0.12)', border: 'rgba(106,158,196,0.3)',  tag: '#6a9ec4' },
   'Qualificação': { header: 'rgba(168,143,196,0.12)', border: 'rgba(168,143,196,0.3)',  tag: '#a88fc4' },
   'Proposta':     { header: 'rgba(217,168,44,0.12)',  border: 'rgba(217,168,44,0.3)',   tag: '#d9a82c' },
+  'Enviada':      { header: 'rgba(95,168,163,0.12)',  border: 'rgba(95,168,163,0.3)',   tag: '#5fa8a3' },
   'Negociação':   { header: 'rgba(196,160,106,0.12)', border: 'rgba(196,160,106,0.3)',  tag: '#c4a06a' },
   'Ganho':        { header: 'rgba(127,179,138,0.15)', border: 'rgba(127,179,138,0.35)', tag: '#7fb38a' },
   'Perdido':      { header: 'rgba(196,117,106,0.12)', border: 'rgba(196,117,106,0.3)',  tag: '#c4756a' },

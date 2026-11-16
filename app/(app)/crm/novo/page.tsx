@@ -1,13 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { ArrowLeftIcon, UserPlusIcon } from '@phosphor-icons/react'
+import { ETAPAS } from '@/lib/utils'
 
-const ETAPAS = ['Prospecção', 'Qualificação', 'Proposta', 'Negociação', 'Ganho', 'Perdido']
 const SEGMENTOS = ['Contabilidade', 'Advocacia', 'Consultoria', 'Saúde', 'Educação', 'Tecnologia', 'Varejo', 'Indústria', 'Serviços', 'Outros']
-const RESPONSAVEIS = ['Wilson Ricoy', 'Thayna Araújo', 'Pedro Ricoy']
 const ORIGENS = ['Indicação', 'LinkedIn', 'Instagram', 'Site', 'Evento', 'Cold Outreach', 'Outros']
 
 const field: React.CSSProperties = {
@@ -35,6 +34,7 @@ export default function NovoClientePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [responsaveis, setResponsaveis] = useState<{ id: string; name: string }[]>([])
 
   const [form, setForm] = useState({
     empresa: '',
@@ -45,10 +45,21 @@ export default function NovoClientePage() {
     email: '',
     telefone: '',
     cidade: '',
-    responsavel: 'Wilson Ricoy',
+    responsavel: '',
     origem: 'Indicação',
     valor: '',
   })
+
+  useEffect(() => {
+    fetch('/api/profiles')
+      .then(r => r.json())
+      .then((data: { id: string; name: string }[]) => {
+        const list = Array.isArray(data) ? data.filter(p => p.name) : []
+        setResponsaveis(list)
+        if (list.length > 0) set('responsavel', list[0].name)
+      })
+      .catch(() => {})
+  }, [])
 
   function set(key: string, value: string) {
     setForm(f => ({ ...f, [key]: value }))
@@ -68,7 +79,7 @@ export default function NovoClientePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...form,
-        valor: form.valor ? parseFloat(form.valor.replace(',', '.')) : null,
+        valor: form.valor ? Number(form.valor) : null,
       }),
     })
 
@@ -170,7 +181,9 @@ export default function NovoClientePage() {
                   <div>
                     <label style={label}>Responsável *</label>
                     <select style={field} value={form.responsavel} onChange={e => set('responsavel', e.target.value)}>
-                      {RESPONSAVEIS.map(r => <option key={r} value={r}>{r}</option>)}
+                      {responsaveis.length === 0
+                        ? <option value="">Nenhum sócio cadastrado</option>
+                        : responsaveis.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                     </select>
                   </div>
                   <div>
@@ -180,8 +193,14 @@ export default function NovoClientePage() {
                     </select>
                   </div>
                   <div>
-                    <label style={label}>Valor estimado (R$)</label>
-                    <input style={field} placeholder="Ex: 5000" value={form.valor} onChange={e => set('valor', e.target.value)} />
+                    <label style={label}>Valor estimado (R$) — sem pontos</label>
+                    <input
+                      style={{ ...field, fontFamily: 'var(--font-mono)' }}
+                      type="number" min="0" step="0.01"
+                      placeholder="Ex: 5000"
+                      value={form.valor}
+                      onChange={e => set('valor', e.target.value)}
+                    />
                   </div>
                 </div>
               </div>

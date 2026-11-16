@@ -1,77 +1,68 @@
 import { Header } from '@/components/layout/Header'
 import { createClient } from '@/lib/supabase/server'
-import { formatCurrency } from '@/lib/utils'
-import { TrophyIcon, ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react/dist/ssr'
+import { ETAPAS, ETAPA_COLORS, formatCurrency } from '@/lib/utils'
+import { TrophyIcon } from '@phosphor-icons/react/dist/ssr'
 
-const STAGE_CONFIG = [
-  { label: 'Prospecção',  bg: 'rgba(106,158,196,0.5)',  color: '#6a9ec4' },
-  { label: 'Qualificação',bg: 'rgba(168,143,196,0.5)',  color: '#a88fc4' },
-  { label: 'Negociação',  bg: 'rgba(196,160,106,0.55)', color: '#c4a06a' },
-  { label: 'Ganho',       bg: 'rgba(127,179,138,0.7)',  color: '#7fb38a' },
-  { label: 'Perdido',     bg: 'rgba(196,117,106,0.55)', color: '#c4756a' },
+// Preenchimento das barras do funil — mais saturado que o badge pequeno
+// usado no Kanban (ETAPA_COLORS.bg), pra dar peso visual às barras grandes.
+const BAR_BG: Record<string, string> = {
+  'Prospecção':   'rgba(106,158,196,0.5)',
+  'Qualificação': 'rgba(168,143,196,0.5)',
+  'Proposta':     'rgba(217,168,44,0.5)',
+  'Enviada':      'rgba(95,168,163,0.5)',
+  'Negociação':   'rgba(196,160,106,0.55)',
+  'Ganho':        'rgba(127,179,138,0.7)',
+  'Perdido':      'rgba(196,117,106,0.55)',
+}
+
+const REGRAS = [
+  { etapa: 'Enviada',    desc: 'Automático quando a proposta é marcada como enviada' },
+  { etapa: 'Negociação', desc: 'Movida manualmente no CRM ao iniciar a negociação' },
+  { etapa: 'Ganho',      desc: 'Automático quando a proposta é marcada como aceita' },
+  { etapa: 'Perdido',    desc: 'Automático quando a proposta é marcada como recusada' },
 ]
 
 export default async function FunilPage() {
   const supabase = await createClient()
 
-  const [clientsRes, proposalsRes] = await Promise.all([
-    supabase.from('clients').select('id, etapa, valor'),
-    supabase.from('proposals').select('id, client_id, total, status'),
-  ])
+  const { data: clientsData } = await supabase.from('clients').select('id, etapa, valor')
+  const clients = clientsData ?? []
 
-  const clients   = clientsRes.data ?? []
-  const proposals = proposalsRes.data ?? []
-
-  // IDs de clientes que já têm alguma proposta
-  const clientsWithProposal = new Set(proposals.map(p => p.client_id).filter(Boolean))
-
-  // Prospecção: clientes sem nenhuma proposta
-  const prospCount = clients.filter(c => !clientsWithProposal.has(c.id)).length
-  const prospValor = clients.filter(c => !clientsWithProposal.has(c.id)).reduce((s, c) => s + (c.valor ?? 0), 0)
-
-  // Qualificação: clientes que TÊM proposta (a proposta montada os qualifica)
-  const qualifCount = clientsWithProposal.size
-  const qualifValor = proposals.reduce((s, p) => s + (p.total ?? 0), 0)
-
-  // Negociação: toda proposta criada vai para negociação (rascunho + enviada)
-  const negocProps  = proposals.filter(p => p.status === 'rascunho' || p.status === 'enviada')
-  const negocCount  = negocProps.length
-  const negocValor  = negocProps.reduce((s, p) => s + (p.total ?? 0), 0)
-
-  // Ganho: propostas aceitas
-  const ganhoProps  = proposals.filter(p => p.status === 'aceita')
-  const ganhoCount  = ganhoProps.length
-  const ganhoValor  = ganhoProps.reduce((s, p) => s + (p.total ?? 0), 0)
-
-  // Perdido: propostas recusadas (única saída de Negociação por perda)
-  const perdidoProps = proposals.filter(p => p.status === 'recusada')
-  const perdidoCount = perdidoProps.length
-  const perdidoValor = perdidoProps.reduce((s, p) => s + (p.total ?? 0), 0)
-
-  const stages = [
-    { ...STAGE_CONFIG[0], count: prospCount,   valor: prospValor,   conv: null },
-    { ...STAGE_CONFIG[1], count: qualifCount,  valor: qualifValor,  conv: prospCount > 0 ? `${Math.round((qualifCount / (prospCount + qualifCount)) * 100)}%` : '—' },
-    { ...STAGE_CONFIG[2], count: negocCount,   valor: negocValor,   conv: qualifCount > 0 ? `${Math.round((negocCount / qualifCount) * 100)}%` : '100%' },
-    { ...STAGE_CONFIG[3], count: ganhoCount,   valor: ganhoValor,   conv: negocCount + ganhoCount > 0 ? `${Math.round((ganhoCount / (negocCount + ganhoCount + perdidoCount)) * 100)}%` : '—' },
-    { ...STAGE_CONFIG[4], count: perdidoCount, valor: perdidoValor, conv: negocCount + perdidoCount > 0 ? `${Math.round((perdidoCount / (negocCount + ganhoCount + perdidoCount)) * 100)}%` : '—' },
-  ]
+  // Mesma etapa que aparece no Kanban do CRM — única fonte de verdade do pipeline
+  const stages = ETAPAS.map(label => {
+    const items = clients.filter(c => c.etapa === label)
+    return {
+      label,
+      count: items.length,
+      valor: items.reduce((s, c) => s + (c.valor ?? 0), 0),
+      ...ETAPA_COLORS[label],
+    }
+  }).map((s, i, arr) => ({
+    ...s,
+    conv: i === 0 ? null : arr[i - 1].count > 0 ? `${Math.round((s.count / arr[i - 1].count) * 100)}%` : '—',
+  }))
 
   const maxCount = Math.max(...stages.map(s => s.count), 1)
+  const byLabel = (label: string) => stages.find(s => s.label === label)
 
-  // KPIs
-  const totalAberto = negocValor
-  const ticket = ganhoCount > 0 ? ganhoValor / ganhoCount : 0
-  const taxaConv = proposals.length > 0 ? `${Math.round((ganhoCount / proposals.length) * 100)}%` : '0%'
+  const prospCount  = byLabel('Prospecção')?.count ?? 0
+  const negocCount  = byLabel('Negociação')?.count ?? 0
+  const ganhoCount  = byLabel('Ganho')?.count ?? 0
+  const perdidoCount = byLabel('Perdido')?.count ?? 0
+
+  // Receita ainda em jogo: tudo que não terminou em Ganho ou Perdido
+  const openValor = stages.filter(s => s.label !== 'Ganho' && s.label !== 'Perdido').reduce((s, e) => s + e.valor, 0)
+
+  // Taxa de conversão: dos negócios já decididos, quantos foram ganhos
+  const decided  = ganhoCount + perdidoCount
+  const taxaConv = decided > 0 ? `${Math.round((ganhoCount / decided) * 100)}%` : '0%'
 
   const kpis = [
-    { label: 'Em prospecção',     value: String(prospCount),          delta: null },
-    { label: 'Em negociação',     value: String(negocCount),          delta: null },
-    { label: 'Receita em aberto', value: formatCurrency(totalAberto), delta: null },
-    { label: 'Taxa de conversão', value: taxaConv,                    delta: null },
+    { label: 'Em prospecção',     value: String(prospCount) },
+    { label: 'Em negociação',     value: String(negocCount) },
+    { label: 'Receita em aberto', value: formatCurrency(openValor) },
+    { label: 'Taxa de conversão', value: taxaConv },
   ]
-
-  // Destaque: etapa com mais oportunidades ativas
-  const destaqueStage = stages.slice(0, 3).reduce((a, b) => a.count >= b.count ? a : b)
 
   return (
     <>
@@ -93,12 +84,12 @@ export default async function FunilPage() {
           {/* Funil bars */}
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: 14, padding: 24 }}>
             <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 16, marginBottom: 4 }}>Funil de vendas</div>
-            <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 8 }}>Baseado em propostas criadas</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 8 }}>Baseado na etapa de cada cliente no CRM</div>
 
             {/* Legenda da lógica */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
               {[
-                { label: 'Proposta criada → Negociação', color: 'var(--gold)' },
+                { label: 'Proposta enviada → Enviada', color: ETAPA_COLORS['Enviada'].color },
                 { label: 'Proposta aceita → Ganho', color: '#7fb38a' },
                 { label: 'Proposta recusada → Perdido', color: '#c4756a' },
               ].map(l => (
@@ -124,7 +115,7 @@ export default async function FunilPage() {
                     </div>
                     <div style={{ height: 34, background: '#1a181c', borderRadius: 8, overflow: 'hidden' }}>
                       <div style={{
-                        height: '100%', width: `${pct}%`, background: e.bg, borderRadius: 8,
+                        height: '100%', width: `${pct}%`, background: BAR_BG[e.label], borderRadius: 8,
                         display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 12,
                         transition: 'width 0.3s ease',
                       }}>
@@ -151,7 +142,7 @@ export default async function FunilPage() {
                   return (
                     <div key={e.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: e.color, fontWeight: 600 }}>{e.count}</div>
-                      <div style={{ width: '100%', height: h, background: e.bg, borderRadius: '5px 5px 2px 2px', minHeight: 6 }} />
+                      <div style={{ width: '100%', height: h, background: BAR_BG[e.label], borderRadius: '5px 5px 2px 2px', minHeight: 6 }} />
                       <div style={{ fontSize: 9, color: 'var(--text-dim)', textAlign: 'center', lineHeight: 1.2 }}>{e.label.substring(0, 5)}</div>
                     </div>
                   )
@@ -169,17 +160,12 @@ export default async function FunilPage() {
                 <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 15 }}>Regras do funil</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[
-                  { etapa: 'Qualificação', desc: 'Quando uma proposta é criada para o lead' },
-                  { etapa: 'Negociação', desc: 'Toda proposta criada entra automaticamente' },
-                  { etapa: 'Ganho', desc: 'Proposta marcada como aceita' },
-                  { etapa: 'Perdido', desc: 'Proposta marcada como recusada' },
-                ].map(r => (
+                {REGRAS.map(r => (
                   <div key={r.etapa} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                     <span style={{
-                      fontSize: 10.5, fontWeight: 700, color: STAGE_CONFIG.find(s => s.label === r.etapa)?.color ?? 'var(--gold)',
-                      background: `${STAGE_CONFIG.find(s => s.label === r.etapa)?.color ?? 'var(--gold)'}18`,
-                      border: `1px solid ${STAGE_CONFIG.find(s => s.label === r.etapa)?.color ?? 'var(--gold)'}30`,
+                      fontSize: 10.5, fontWeight: 700, color: ETAPA_COLORS[r.etapa]?.color ?? 'var(--gold)',
+                      background: `${ETAPA_COLORS[r.etapa]?.color ?? 'var(--gold)'}18`,
+                      border: `1px solid ${ETAPA_COLORS[r.etapa]?.color ?? 'var(--gold)'}30`,
                       padding: '2px 8px', borderRadius: 20, whiteSpace: 'nowrap', marginTop: 1,
                     }}>{r.etapa}</span>
                     <span style={{ fontSize: 12, color: '#c8c3b9', lineHeight: 1.5 }}>{r.desc}</span>

@@ -4,13 +4,11 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import Link from 'next/link'
-import { ETAPA_COLORS, formatCurrency } from '@/lib/utils'
+import { ETAPAS, ETAPA_COLORS, formatCurrency } from '@/lib/utils'
 import {
   ArrowLeftIcon, FilePlusIcon, PhoneIcon, EnvelopeIcon,
   PencilSimpleIcon, FloppyDiskIcon, XIcon, TrashIcon,
 } from '@phosphor-icons/react'
-
-const ETAPAS = ['Prospecção', 'Qualificação', 'Proposta', 'Negociação', 'Ganho', 'Perdido']
 
 const SEGMENTOS = ['Indústria', 'Serviços', 'Varejo', 'Tecnologia', 'Saúde', 'Educação', 'Agro', 'Outros']
 const ORIGENS   = ['Indicação', 'LinkedIn', 'Site', 'Cold Outreach', 'Evento', 'Parceiro', 'Outros']
@@ -40,6 +38,14 @@ export default function ClientePage() {
   const [valor, setValor]           = useState<number | ''>('')
   const [responsavel, setResponsavel] = useState('')
   const [score, setScore]           = useState<number | ''>('')
+  const [responsaveis, setResponsaveis] = useState<{ id: string; name: string }[]>([])
+
+  useEffect(() => {
+    fetch('/api/profiles')
+      .then(r => r.json())
+      .then((data: { id: string; name: string }[]) => setResponsaveis(Array.isArray(data) ? data.filter(p => p.name) : []))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch(`/api/clients/${id}`)
@@ -276,7 +282,13 @@ export default function ClientePage() {
                   </div>
                   <div style={{ gridColumn: '2 / -1' }}>
                     <label style={labelStyle}>Responsável</label>
-                    <input style={inputStyle} value={responsavel} onChange={e => setResponsavel(e.target.value)} />
+                    <select style={{ ...inputStyle, cursor: 'pointer' }} value={responsavel} onChange={e => setResponsavel(e.target.value)}>
+                      <option value="">Selecionar...</option>
+                      {responsavel && !responsaveis.some(r => r.name === responsavel) && (
+                        <option value={responsavel}>{responsavel}</option>
+                      )}
+                      {responsaveis.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                    </select>
                   </div>
                 </div>
               </div>

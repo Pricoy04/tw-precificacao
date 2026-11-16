@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { STATUS_TO_ETAPA } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -7,7 +8,7 @@ export async function GET() {
     .from('proposals')
     .select('*, clients(empresa), proposal_services(*)')
     .order('created_at', { ascending: false })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error(error); return NextResponse.json({ error: 'Erro ao buscar propostas.' }, { status: 500 }) }
   return NextResponse.json(data)
 }
 
@@ -25,11 +26,13 @@ export async function POST(request: Request) {
   for (const key of allowed) {
     if (key in rawData) proposalData[key] = rawData[key]
   }
+  if (proposalData.status === 'enviada') proposalData.sent_at = new Date().toISOString()
+  if (proposalData.status === 'aceita') proposalData.accepted_at = new Date().toISOString()
 
   const { data: proposal, error } = await supabase
     .from('proposals').insert([proposalData]).select().single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error(error); return NextResponse.json({ error: 'Erro ao criar proposta.' }, { status: 500 }) }
 
   if (services?.length) {
     const { error: svcErr } = await supabase.from('proposal_services').insert(
@@ -40,7 +43,23 @@ export async function POST(request: Request) {
         valor: s.valor ?? 0,
       }))
     )
-    if (svcErr) return NextResponse.json({ error: svcErr.message }, { status: 500 })
+    if (svcErr) { console.error(svcErr); return NextResponse.json({ error: 'Erro ao salvar os serviços da proposta.' }, { status: 500 }) }
+  }
+
+  if (proposal.client_id) {
+    await supabase.from('client_activities').insert({
+      client_id: proposal.client_id,
+      type: 'proposta',
+      icon: '📄',
+      color: '#d9a82c',
+      text: `Proposta ${numero} criada`,
+    })
+  }
+
+  // Se a proposta já nasce enviada/aceita/recusada, move a etapa do cliente
+  const novaEtapa = typeof proposalData.status === 'string' ? STATUS_TO_ETAPA[proposalData.status as string] : undefined
+  if (novaEtapa && proposal.client_id) {
+    await supabase.from('clients').update({ etapa: novaEtapa }).eq('id', proposal.client_id)
   }
 
   return NextResponse.json(proposal, { status: 201 })

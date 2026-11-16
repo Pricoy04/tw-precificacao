@@ -12,14 +12,36 @@ export async function GET(request: Request) {
   if (q) query = query.ilike('empresa', `%${q}%`)
 
   const { data, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error(error); return NextResponse.json({ error: 'Erro ao buscar clientes.' }, { status: 500 }) }
   return NextResponse.json(data)
+}
+
+const ALLOWED_FIELDS = [
+  'empresa', 'segmento', 'contato', 'email', 'telefone', 'cidade',
+  'cargo', 'origem', 'etapa', 'valor', 'responsavel', 'score',
+]
+
+function pickAllowed(body: Record<string, unknown>) {
+  const clean: Record<string, unknown> = {}
+  for (const key of ALLOWED_FIELDS) {
+    if (key in body) clean[key] = body[key]
+  }
+  return clean
 }
 
 export async function POST(request: Request) {
   const supabase = await createClient()
   const body = await request.json()
-  const { data, error } = await supabase.from('clients').insert([body]).select().single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const { data, error } = await supabase.from('clients').insert([pickAllowed(body)]).select().single()
+  if (error) { console.error(error); return NextResponse.json({ error: 'Erro ao cadastrar cliente.' }, { status: 500 }) }
+
+  await supabase.from('client_activities').insert({
+    client_id: data.id,
+    type: 'cliente',
+    icon: '👤',
+    color: '#6a9ec4',
+    text: 'Cliente cadastrado no CRM',
+  })
+
   return NextResponse.json(data, { status: 201 })
 }

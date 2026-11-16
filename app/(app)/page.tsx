@@ -18,14 +18,27 @@ const ACTIVITY_ICONS: Record<string, { icon: string; color: string; bg: string }
   'reuniao':  { icon: '📅', color: '#6a9ec4', bg: 'rgba(106,158,196,0.1)' },
   'ganho':    { icon: '🏆', color: '#7fb38a', bg: 'rgba(127,179,138,0.1)' },
   'ligacao':  { icon: '📞', color: '#a88fc4', bg: 'rgba(168,143,196,0.1)' },
+  'perdido':  { icon: '❌', color: '#c4756a', bg: 'rgba(196,117,106,0.1)' },
+  'cliente':  { icon: '👤', color: '#6a9ec4', bg: 'rgba(106,158,196,0.1)' },
+  'etapa':    { icon: '🔄', color: '#c4a06a', bg: 'rgba(196,160,106,0.1)' },
+}
+
+// Variação percentual entre o mês atual e o anterior, com o sinal já formatado
+function pctDelta(curr: number, prev: number): { delta: string; up: boolean } {
+  if (prev === 0) return curr === 0 ? { delta: '0%', up: true } : { delta: '+100%', up: true }
+  const pct = Math.round(((curr - prev) / prev) * 100)
+  return { delta: `${pct >= 0 ? '+' : ''}${pct}%`, up: pct >= 0 }
 }
 
 export default async function DashboardPage() {
   const supabase = await createClient()
+  const now = new Date()
+  const startThisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const startLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
   const [clientsRes, proposalsRes, tasksRes, activitiesRes] = await Promise.all([
-    supabase.from('clients').select('id, etapa, valor'),
-    supabase.from('proposals').select('id, total, status, created_at'),
+    supabase.from('clients').select('id, etapa, valor, created_at'),
+    supabase.from('proposals').select('id, total, status, created_at, sent_at, accepted_at'),
     supabase.from('tasks').select('*, clients(empresa)').gte('date', new Date().toISOString().split('T')[0]).order('time').limit(4),
     supabase.from('client_activities').select('*, clients(empresa)').order('created_at', { ascending: false }).limit(5),
   ])
@@ -40,11 +53,34 @@ export default async function DashboardPage() {
   const receitaAcum  = proposals.filter(p => p.status === 'aceita').reduce((s, p) => s + (p.total ?? 0), 0)
   const taxaConv     = propEnviadas > 0 ? `${((propAceitas / propEnviadas) * 100).toFixed(1)}%` : '0%'
 
+  // Variação real mês atual x mês anterior — alimenta o selo de cada KPI.
+  // Usa a data do evento (sent_at/accepted_at); cai pra created_at só em
+  // propostas antigas, gravadas antes dessas colunas existirem.
+  const inMonth = (dateStr: string | null, start: Date, end: Date) =>
+    !!dateStr && new Date(dateStr) >= start && new Date(dateStr) < end
+
+  const sentDate = (p: { sent_at?: string | null; created_at: string }) => p.sent_at ?? p.created_at
+  const acceptedDate = (p: { accepted_at?: string | null; created_at: string }) => p.accepted_at ?? p.created_at
+
+  const clientsThisMonth = clients.filter(c => inMonth(c.created_at, startThisMonth, now)).length
+  const clientsLastMonth = clients.filter(c => inMonth(c.created_at, startLastMonth, startThisMonth)).length
+
+  const enviadasThisMonth = proposals.filter(p => p.status !== 'rascunho' && inMonth(sentDate(p), startThisMonth, now)).length
+  const enviadasLastMonth = proposals.filter(p => p.status !== 'rascunho' && inMonth(sentDate(p), startLastMonth, startThisMonth)).length
+
+  const receitaThisMonth = proposals.filter(p => p.status === 'aceita' && inMonth(acceptedDate(p), startThisMonth, now)).reduce((s, p) => s + (p.total ?? 0), 0)
+  const receitaLastMonth = proposals.filter(p => p.status === 'aceita' && inMonth(acceptedDate(p), startLastMonth, startThisMonth)).reduce((s, p) => s + (p.total ?? 0), 0)
+
+  const aceitasThisMonth = proposals.filter(p => p.status === 'aceita' && inMonth(acceptedDate(p), startThisMonth, now)).length
+  const aceitasLastMonth = proposals.filter(p => p.status === 'aceita' && inMonth(acceptedDate(p), startLastMonth, startThisMonth)).length
+  const convThisMonth = enviadasThisMonth > 0 ? (aceitasThisMonth / enviadasThisMonth) * 100 : 0
+  const convLastMonth = enviadasLastMonth > 0 ? (aceitasLastMonth / enviadasLastMonth) * 100 : 0
+
   const kpis = [
-    { icon: UsersIcon,                label: 'Clientes ativos',   value: String(clients.length),      delta: '+12%', up: true },
-    { icon: FileTextIcon,             label: 'Propostas enviadas', value: String(propEnviadas),        delta: '+8%',  up: true },
-    { icon: CurrencyCircleDollarIcon, label: 'Receita acumulada', value: formatCurrency(receitaAcum), delta: '+23%', up: true },
-    { icon: TrendUpIcon,              label: 'Taxa de conversão',  value: taxaConv,                   delta: '-2%',  up: false },
+    { icon: UsersIcon,                label: 'Clientes ativos',    value: String(clients.length),      ...pctDelta(clientsThisMonth, clientsLastMonth) },
+    { icon: FileTextIcon,             label: 'Propostas enviadas', value: String(propEnviadas),         ...pctDelta(enviadasThisMonth, enviadasLastMonth) },
+    { icon: CurrencyCircleDollarIcon, label: 'Receita acumulada',  value: formatCurrency(receitaAcum),  ...pctDelta(receitaThisMonth, receitaLastMonth) },
+    { icon: TrendUpIcon,              label: 'Taxa de conversão',  value: taxaConv,                     ...pctDelta(convThisMonth, convLastMonth) },
   ]
 
   const etapas = ['Prospecção', 'Qualificação', 'Proposta', 'Negociação', 'Ganho']
@@ -55,14 +91,13 @@ export default async function DashboardPage() {
     width: `${widths[i]}%`, bg: bgs[i],
   }))
 
-  const now = new Date()
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1)
     return { label: d.toLocaleDateString('pt-BR', { month: 'short' }), key: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` }
   })
-  const maxRev = Math.max(...months.map(m => proposals.filter(p => p.status === 'aceita' && p.created_at?.startsWith(m.key)).reduce((s,p) => s+(p.total??0), 0)), 1)
+  const maxRev = Math.max(...months.map(m => proposals.filter(p => p.status === 'aceita' && acceptedDate(p)?.startsWith(m.key)).reduce((s,p) => s+(p.total??0), 0)), 1)
   const revenue = months.map(m => {
-    const total = proposals.filter(p => p.status === 'aceita' && p.created_at?.startsWith(m.key)).reduce((s,p) => s+(p.total??0), 0)
+    const total = proposals.filter(p => p.status === 'aceita' && acceptedDate(p)?.startsWith(m.key)).reduce((s,p) => s+(p.total??0), 0)
     const h = Math.max(6, Math.round((total/maxRev)*160))
     return { label: m.label, value: total > 0 ? `R$${(total/1000).toFixed(0)}k` : '—', h: `${h}px`, active: total > 0 }
   })
@@ -82,7 +117,7 @@ export default async function DashboardPage() {
                 <div style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--gold-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon size={19} color="var(--gold)" />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-mono)', color: up ? 'var(--green)' : 'var(--red)' }}>
+                <div title="Comparado ao mês anterior" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-mono)', color: up ? 'var(--green)' : 'var(--red)' }}>
                   {up ? <ArrowUpIcon size={13} /> : <ArrowDownIcon size={13} />}
                   {delta}
                 </div>
