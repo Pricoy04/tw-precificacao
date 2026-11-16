@@ -62,6 +62,7 @@ export function CalendarView({ clients }: { clients: Client[] }) {
   const [loading, setLoading]     = useState(true)
   const [modal, setModal]         = useState<ModalState>({ open: false, task: null, date: '', time: '09:00', isNew: true })
   const [saving, setSaving]       = useState(false)
+  const [modalError, setModalError] = useState('')
   const [timeLine, setTimeLine]   = useState(0)
   const gridRef = useRef<HTMLDivElement>(null)
 
@@ -104,35 +105,53 @@ export function CalendarView({ clients }: { clients: Client[] }) {
 
   function openCreate(date: string, hour: number) {
     setModal({ open: true, isNew: true, task: { type: 'Reunião', title: '' }, date, time: `${String(hour).padStart(2,'0')}:00` })
+    setModalError('')
   }
 
   function openEdit(task: Task) {
     setModal({ open: true, isNew: false, task: { ...task }, date: task.date, time: task.time })
+    setModalError('')
   }
 
-  function closeModal() { setModal(m => ({ ...m, open: false })) }
+  function closeModal() { setModal(m => ({ ...m, open: false })); setModalError('') }
 
   async function handleSave() {
     if (!modal.task?.title?.trim()) return
     setSaving(true)
+    setModalError('')
     const body = { title: modal.task.title, type: modal.task.type, date: modal.date, time: modal.time, client_id: (modal.task as any).client_id ?? null }
-    if (modal.isNew) {
-      await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    } else {
-      await fetch(`/api/tasks/${modal.task!.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    try {
+      const res = modal.isNew
+        ? await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        : await fetch(`/api/tasks/${modal.task!.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setModalError(data.error ?? 'Erro ao salvar o compromisso.')
+        return
+      }
+      closeModal()
+      loadTasks()
+    } catch {
+      setModalError('Não foi possível conectar ao servidor.')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
-    closeModal()
-    loadTasks()
   }
 
   async function handleDelete() {
     if (!modal.task?.id) return
     setSaving(true)
-    await fetch(`/api/tasks/${modal.task.id}`, { method: 'DELETE' })
-    setSaving(false)
-    closeModal()
-    loadTasks()
+    setModalError('')
+    try {
+      const res = await fetch(`/api/tasks/${modal.task.id}`, { method: 'DELETE' })
+      if (!res.ok) { setModalError('Erro ao excluir o compromisso.'); return }
+      closeModal()
+      loadTasks()
+    } catch {
+      setModalError('Não foi possível conectar ao servidor.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   function isToday(d: Date) {
@@ -348,6 +367,12 @@ export function CalendarView({ clients }: { clients: Client[] }) {
                 </select>
               </div>
             </div>
+
+            {modalError && (
+              <div style={{ background: 'rgba(196,117,106,0.12)', border: '1px solid rgba(196,117,106,0.3)', borderRadius: 9, padding: '9px 12px', fontSize: 12.5, color: '#c4756a', marginTop: 16 }}>
+                {modalError}
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'space-between' }}>
               {!modal.isNew && (

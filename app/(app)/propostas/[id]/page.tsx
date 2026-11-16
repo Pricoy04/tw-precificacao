@@ -61,23 +61,39 @@ export default function EditarPropostaPage() {
   async function handleSave() {
     setSaving(true)
     setError('')
-    const res = await fetch(`/api/proposals/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ empresa, cnpj, contato, cargo, prazo, validade, condicoes, desconto, total, status }),
-    })
-    setSaving(false)
-    if (!res.ok) { setError('Erro ao salvar.'); return }
-    router.push('/propostas')
-    router.refresh()
+    const subtotalAtual = services.reduce((s, svc) => s + (svc.valor ?? 0), 0)
+    const totalParaSalvar = subtotalAtual > 0 ? subtotalAtual - subtotalAtual * (desconto / 100) : total
+    try {
+      const res = await fetch(`/api/proposals/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresa, cnpj, contato, cargo, prazo, validade, condicoes, desconto, total: totalParaSalvar, status }),
+      })
+      if (!res.ok) { setError('Erro ao salvar.'); return }
+      router.push('/propostas')
+      router.refresh()
+    } catch {
+      setError('Não foi possível conectar ao servidor.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleDelete() {
     if (!confirmDel) { setConfirmDel(true); return }
     setDeleting(true)
-    await fetch(`/api/proposals/${id}`, { method: 'DELETE' })
-    router.push('/propostas')
-    router.refresh()
+    setError('')
+    try {
+      const res = await fetch(`/api/proposals/${id}`, { method: 'DELETE' })
+      if (!res.ok) { setError('Erro ao excluir a proposta.'); setConfirmDel(false); return }
+      router.push('/propostas')
+      router.refresh()
+    } catch {
+      setError('Não foi possível conectar ao servidor.')
+      setConfirmDel(false)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const inputStyle: React.CSSProperties = {
@@ -188,7 +204,11 @@ export default function EditarPropostaPage() {
                   </div>
                   <div>
                     <label style={labelStyle}>Desconto (%)</label>
-                    <input style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} type="number" value={desconto} onChange={e => setDesconto(Number(e.target.value) || 0)} />
+                    <input
+                      style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
+                      type="number" min="0" max="100" value={desconto}
+                      onChange={e => setDesconto(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                    />
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <label style={labelStyle}>Condições de pagamento</label>
@@ -211,8 +231,19 @@ export default function EditarPropostaPage() {
                   </div>
                   <div>
                     <label style={labelStyle}>Valor total (R$)</label>
-                    <input style={{ ...inputStyle, fontFamily: 'var(--font-mono)', color: 'var(--gold-light)' }}
-                      type="number" value={total} onChange={e => setTotal(Number(e.target.value) || 0)} />
+                    {subtotal > 0 ? (
+                      <div style={{ ...inputStyle, fontFamily: 'var(--font-mono)', color: 'var(--gold-light)', display: 'flex', alignItems: 'center' }}>
+                        {formatCurrency(totalCalc)}
+                      </div>
+                    ) : (
+                      <input style={{ ...inputStyle, fontFamily: 'var(--font-mono)', color: 'var(--gold-light)' }}
+                        type="number" min="0" value={total} onChange={e => setTotal(Math.max(0, Number(e.target.value) || 0))} />
+                    )}
+                    {subtotal > 0 && (
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 5 }}>
+                        Calculado a partir do subtotal dos serviços e do desconto
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -287,7 +318,7 @@ export default function EditarPropostaPage() {
               desconto={desconto}
               descontoVal={descontoVal}
               subtotal={subtotal}
-              totalCalc={total || totalCalc}
+              totalCalc={subtotal > 0 ? totalCalc : total}
               status={status}
               services={services}
               createdAt={createdAt}

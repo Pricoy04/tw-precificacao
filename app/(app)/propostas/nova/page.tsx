@@ -31,6 +31,7 @@ function NovaPropostaInner() {
   const [selected, setSelected] = useState<number[]>([])
   const [customPrices, setCustomPrices] = useState<Record<number, number>>({})
   const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState('')
 
   useEffect(() => {
     if (clienteId) {
@@ -67,20 +68,35 @@ function NovaPropostaInner() {
   const total    = subtotal - descVal
 
   async function handleSave() {
+    if (!empresa.trim()) { setError('Informe o nome da empresa antes de salvar.'); return }
+    if (selected.length === 0) { setError('Selecione ao menos um serviço antes de salvar.'); return }
+
     setSaving(true)
+    setError('')
     const services = selected.map(i => ({ nome: DEFAULT_SERVICES[i].nome, desc: DEFAULT_SERVICES[i].desc, valor: getPrice(i) }))
-    await fetch('/api/proposals', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: clienteId ?? null,
-        empresa, cnpj, contato, cargo,
-        prazo, validade, condicoes, desconto, total,
-        status: 'rascunho',
-        services,
-      }),
-    })
-    router.push('/propostas')
+    try {
+      const res = await fetch('/api/proposals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: clienteId ?? null,
+          empresa, cnpj, contato, cargo,
+          prazo, validade, condicoes, desconto, total,
+          status: 'rascunho',
+          services,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error ?? 'Erro ao salvar a proposta. Tente novamente.')
+        setSaving(false)
+        return
+      }
+      router.push('/propostas')
+    } catch {
+      setError('Não foi possível conectar ao servidor. Verifique sua conexão.')
+      setSaving(false)
+    }
   }
 
   async function handleExportPPT() {
@@ -490,8 +506,9 @@ function NovaPropostaInner() {
                           <label style={{ fontSize: 11.5, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Valor (R$):</label>
                           <input
                             type="number"
+                            min="0"
                             value={getPrice(i)}
-                            onChange={e => setCustomPrices(p => ({ ...p, [i]: Number(e.target.value) || 0 }))}
+                            onChange={e => setCustomPrices(p => ({ ...p, [i]: Math.max(0, Number(e.target.value) || 0) }))}
                             onClick={e => e.stopPropagation()}
                             style={{
                               ...inputStyle, fontFamily: 'var(--font-mono)', fontSize: 13.5,
@@ -526,8 +543,13 @@ function NovaPropostaInner() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 6 }}>Desconto (%)</label>
-                  <input value={String(desconto)} onChange={e => setDesconto(Number(e.target.value) || 0)} placeholder="0"
-                    style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
+                  <input
+                    type="number" min="0" max="100"
+                    value={String(desconto)}
+                    onChange={e => setDesconto(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                    placeholder="0"
+                    style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
+                  />
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{ display: 'block', fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 6 }}>Condições de pagamento</label>
@@ -626,6 +648,12 @@ function NovaPropostaInner() {
                 <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 19, color: 'var(--gold-light)' }}>{formatCurrency(total)}</span>
               </div>
             </div>
+
+            {error && (
+              <div style={{ background: 'rgba(196,117,106,0.12)', border: '1px solid rgba(196,117,106,0.3)', borderRadius: 9, padding: '10px 14px', fontSize: 12.5, color: '#c4756a' }}>
+                {error}
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
               <button onClick={handleSave} disabled={saving} style={{

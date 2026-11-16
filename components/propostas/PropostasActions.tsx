@@ -9,14 +9,23 @@ export function PropostasActions({ id }: { id: string }) {
   const router = useRouter()
   const [confirm, setConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState(false)
 
   async function handleDelete(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
     if (!confirm) { setConfirm(true); return }
     setDeleting(true)
-    await fetch(`/api/proposals/${id}`, { method: 'DELETE' })
-    router.refresh()
+    setError(false)
+    try {
+      const res = await fetch(`/api/proposals/${id}`, { method: 'DELETE' })
+      if (!res.ok) { setError(true); setDeleting(false); setConfirm(false); return }
+      router.refresh()
+    } catch {
+      setError(true)
+      setDeleting(false)
+      setConfirm(false)
+    }
   }
 
   function handleCancel(e: React.MouseEvent) {
@@ -27,6 +36,9 @@ export function PropostasActions({ id }: { id: string }) {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={e => e.preventDefault()}>
+      {error && (
+        <span style={{ fontSize: 10.5, color: '#c4756a' }}>Erro ao excluir</span>
+      )}
       {confirm ? (
         <>
           <button onClick={handleDelete} disabled={deleting} title="Confirmar exclusão" style={{
